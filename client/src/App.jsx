@@ -33,9 +33,19 @@ function App() {
       fetchSession(id);
       socket.emit('join_session', id);
 
+      // Restore session state from localStorage
       const storedName = localStorage.getItem(`vibe_participant_${id}`);
+      const storedParticipantId = localStorage.getItem(`vibe_participantId_${id}`);
+      const storedIsHost = localStorage.getItem(`vibe_isHost_${id}`);
+
       if (storedName) {
         setParticipantName(storedName);
+      }
+      if (storedParticipantId) {
+        setParticipantId(storedParticipantId);
+      }
+      if (storedIsHost === 'true') {
+        setIsHost(true);
       }
 
       socket.on('connect', () => {
@@ -115,7 +125,10 @@ function App() {
       setIsHost(true);
       setView('lobby');
       window.history.pushState({}, '', `/session/${data.id}`);
+      // Store all session state for refresh persistence
       localStorage.setItem(`vibe_participant_${data.id}`, config.hostName);
+      localStorage.setItem(`vibe_participantId_${data.id}`, data.participantId);
+      localStorage.setItem(`vibe_isHost_${data.id}`, 'true');
       socket.emit('join_session', data.id);
       fetchSession(data.id);
       return data;
@@ -137,7 +150,10 @@ function App() {
       setParticipantName(name);
       setIsHost(false);
       setSessionData(data.session);
+      // Store all session state for refresh persistence
       localStorage.setItem(`vibe_participant_${id}`, name);
+      localStorage.setItem(`vibe_participantId_${id}`, data.id);
+      localStorage.setItem(`vibe_isHost_${id}`, 'false');
       socket.emit('join_session', id);
       return data;
     } catch (err) {
