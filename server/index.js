@@ -52,7 +52,6 @@ const createSessionLimiter = rateLimit({
 });
 
 app.use('/api/', apiLimiter);
-app.use('/api/session', createSessionLimiter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -869,8 +868,8 @@ Give 4-5 recommendations. For places, use the EXACT name from the list.`;
 
 // API Routes
 
-// Create session
-app.post('/api/session', async (req, res) => {
+// Create session (rate limited to prevent abuse)
+app.post('/api/session', createSessionLimiter, async (req, res) => {
   const { mode, category, locationRadius } = req.body;
   const hostName = sanitize(req.body.hostName, 50);
   const location = sanitize(req.body.location || '', 100);
