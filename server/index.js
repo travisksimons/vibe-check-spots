@@ -300,7 +300,8 @@ async function fetchLocalPlaces(category, location, radiusMeters) {
     food: [
       `["amenity"="restaurant"]`,
       `["amenity"="fast_food"]["name"]`,
-      `["amenity"="cafe"]["cuisine"]`
+      // Only include cafes that serve actual food (not just coffee/drinks)
+      `["amenity"="cafe"]["cuisine"~"breakfast|brunch|sandwich|bakery|pastry|lunch",i]`
     ],
     drinks: [
       `["amenity"~"bar|pub|biergarten|nightclub"]`,
@@ -1062,6 +1063,7 @@ app.post('/api/session/:id/submit', async (req, res) => {
     }
 
     db.prepare('UPDATE sessions SET results = ?, status = ? WHERE id = ?').run(JSON.stringify(results), 'complete', id);
+    console.log(`Emitting results_ready to session:${id}`);
     io.to(`session:${id}`).emit('results_ready', { results, isUpdate: isLateJoinerUpdate });
   }
 
@@ -1150,12 +1152,20 @@ app.post('/api/session/:id/close', async (req, res) => {
 
 // Socket.io for real-time updates
 io.on('connection', (socket) => {
+  console.log('Socket connected:', socket.id);
+
   socket.on('join_session', (sessionId) => {
+    console.log(`Socket ${socket.id} joining session:${sessionId}`);
     socket.join(`session:${sessionId}`);
   });
 
   socket.on('leave_session', (sessionId) => {
+    console.log(`Socket ${socket.id} leaving session:${sessionId}`);
     socket.leave(`session:${sessionId}`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Socket disconnected:', socket.id);
   });
 });
 

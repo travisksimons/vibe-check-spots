@@ -77,8 +77,11 @@ function App() {
       });
 
       socket.on('results_ready', (data) => {
-        setResults(data.results);
-        setView('results');
+        console.log('results_ready event received:', data);
+        if (data.results) {
+          setResults(data.results);
+          setView('results');
+        }
       });
 
       return () => {
@@ -177,12 +180,28 @@ function App() {
 
   const submitQuiz = async (answers) => {
     try {
+      // Ensure we're connected to socket room before submitting
+      socket.emit('join_session', sessionId);
+
       const res = await fetch(`/api/session/${sessionId}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ participantId, answers })
       });
       const data = await res.json();
+
+      // If all completed, results will come via socket - poll as backup
+      if (data.allCompleted) {
+        console.log('All completed, waiting for results via socket...');
+        // Give socket event time to arrive, then poll as fallback
+        setTimeout(() => {
+          if (view !== 'results') {
+            console.log('Socket event not received, fetching session...');
+            fetchSession(sessionId);
+          }
+        }, 2000);
+      }
+
       return data;
     } catch (err) {
       console.error('Failed to submit quiz:', err);

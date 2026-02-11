@@ -1,5 +1,20 @@
 import React, { useState } from 'react';
 
+// Format category names: "bubble_tea" -> "Bubble Tea", "coffee_shop" -> "Coffee Shop"
+function formatCategory(str) {
+  if (!str) return '';
+  return str
+    .split(/[_;]/) // Split on underscores and semicolons
+    .map(part => part.trim())
+    .filter(Boolean)
+    .map(part =>
+      part.split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ')
+    )
+    .join(', ');
+}
+
 function PlaceCard({ place, extra }) {
   return (
     <div className="result-card">
@@ -12,7 +27,7 @@ function PlaceCard({ place, extra }) {
         <div className="flex flex-wrap gap-1 mb-2">
           {place.cuisine.split(';').map((c, i) => (
             <span key={i} className="px-2 py-0.5 text-xs rounded-full border border-vt-darkgray text-vt-gray">
-              {c.trim()}
+              {formatCategory(c.trim())}
             </span>
           ))}
         </div>
@@ -212,7 +227,7 @@ function LocalsResults({ sessionData, results, participantName, onNewSession }) 
               <div className="flex flex-wrap gap-2">
                 {cuisine_overlap.map((c, i) => (
                   <span key={i} className="px-3 py-1 text-sm border border-vt-darkgray text-vt-light rounded-full">
-                    {c}
+                    {formatCategory(c)}
                   </span>
                 ))}
               </div>
@@ -313,7 +328,7 @@ function LocalsResults({ sessionData, results, participantName, onNewSession }) 
                 {profile.topCuisines.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {profile.topCuisines.map((c, i) => (
-                      <span key={i} className="text-xs text-vt-gray">{c}{i < profile.topCuisines.length - 1 ? ',' : ''}</span>
+                      <span key={i} className="text-xs text-vt-gray">{formatCategory(c)}{i < profile.topCuisines.length - 1 ? ',' : ''}</span>
                     ))}
                   </div>
                 )}
@@ -335,7 +350,7 @@ function LocalsResults({ sessionData, results, participantName, onNewSession }) 
                   <div className="flex flex-wrap gap-2">
                     {myProfile.topCuisines.map((c, i) => (
                       <span key={i} className="px-3 py-1 text-sm border border-vt-darkgray text-vt-light rounded-full">
-                        {c}
+                        {formatCategory(c)}
                       </span>
                     ))}
                   </div>
