@@ -296,94 +296,67 @@ async function fetchLocalPlaces(category, location, radiusMeters) {
     return [];
   }
 
-  const queryStrategies = {
-    food: [
-      `["amenity"="restaurant"]`,
-      `["amenity"="fast_food"]["name"]`,
-      // Only include cafes that serve actual food (not just coffee/drinks)
-      `["amenity"="cafe"]["cuisine"~"breakfast|brunch|sandwich|bakery|pastry|lunch",i]`
-    ],
-    drinks: [
-      // Primary: bars, pubs, nightclubs
-      `["amenity"~"bar|pub|biergarten|nightclub"]["name"]`,
-      // Breweries and wineries
-      `["craft"~"brewery|winery"]["name"]`,
-      `["microbrewery"="yes"]["name"]`,
-      // Cocktail bars and lounges
-      `["bar"="yes"]["name"]`,
-      // Wine bars
-      `["amenity"="restaurant"]["cuisine"~"wine_bar",i]`,
-      // Sports bars (often tagged as restaurants)
-      `["amenity"="restaurant"]["sport"="darts"]`
-    ],
-    activities: [
-      // Entertainment venues
-      `["amenity"~"theatre|cinema|arts_centre|community_centre|events_venue"]`,
-      `["leisure"~"bowling_alley|escape_game|amusement_arcade|miniature_golf|sports_centre|ice_rink"]`,
-      // Cultural spots
-      `["tourism"~"museum|gallery|zoo|aquarium|theme_park|attraction"]`,
-      // Outdoors & recreation
-      `["leisure"~"park|garden|nature_reserve"]["name"]`,
-      // Nightlife & entertainment
-      `["amenity"~"nightclub|casino|karaoke_box"]`,
-      // Sports & games
-      `["sport"~"climbing|bowling|billiards"]["name"]`,
-      `["leisure"="sports_centre"]["name"]`
-    ]
+  console.log(`Fetching ${category} places near ${coords.lat},${coords.lon} within ${radiusMeters}m`);
+
+  // Use a single combined query per category for efficiency
+  // This avoids multiple API calls and rate limiting issues
+  const categoryQueries = {
+    food: `["amenity"~"restaurant|fast_food"]["name"]`,
+    drinks: `["amenity"~"bar|pub|biergarten|nightclub"]["name"]`,
+    activities: `["amenity"~"theatre|cinema|arts_centre"]["name"]`
   };
 
-  const filters = queryStrategies[category] || queryStrategies.food;
+  const tagFilter = categoryQueries[category] || categoryQueries.food;
   const allPlaces = [];
   const seenIds = new Set();
 
-  for (const tagFilter of filters) {
-    const query = `[out:json][timeout:10];(node${tagFilter}(around:${radiusMeters},${coords.lat},${coords.lon});way${tagFilter}(around:${radiusMeters},${coords.lat},${coords.lon}););out center 50;`;
+  // Single comprehensive query
+  const query = `[out:json][timeout:25];(node${tagFilter}(around:${radiusMeters},${coords.lat},${coords.lon});way${tagFilter}(around:${radiusMeters},${coords.lat},${coords.lon}););out center 100;`;
 
-    try {
-      console.log(`Locals mode: querying Overpass with filter ${tagFilter}`);
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+  try {
+    console.log(`Locals mode: querying Overpass for ${category}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      const response = await fetch(OVERPASS_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `data=${encodeURIComponent(query)}`,
-        signal: controller.signal
-      });
+    const response = await fetch(OVERPASS_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `data=${encodeURIComponent(query)}`,
+      signal: controller.signal
+    });
 
-      clearTimeout(timeoutId);
+    clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        console.error('Overpass error for locals query:', response.status);
-        continue;
-      }
-
-      const data = await response.json();
-      for (const el of (data.elements || [])) {
-        if (!el.tags?.name || seenIds.has(el.id)) continue;
-        seenIds.add(el.id);
-        const lat = el.lat || el.center?.lat;
-        const lon = el.lon || el.center?.lon;
-        allPlaces.push({
-          id: `osm_${el.id}`,
-          name: el.tags.name,
-          address: [el.tags['addr:housenumber'], el.tags['addr:street'], el.tags['addr:city']].filter(Boolean).join(' ') || null,
-          website: el.tags.website || el.tags['contact:website'] || null,
-          tel: el.tags.phone || el.tags['contact:phone'] || null,
-          hours: el.tags.opening_hours || null,
-          cuisine: el.tags.cuisine || null,
-          amenity: el.tags.amenity || el.tags.leisure || el.tags.tourism || null,
-          lat,
-          lon,
-          maps_url: lat && lon ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=18/${lat}/${lon}` : null
-        });
-      }
-    } catch (err) {
-      console.error('Overpass query failed:', err.name === 'AbortError' ? 'timeout' : err.message);
+    if (!response.ok) {
+      console.error('Overpass error:', response.status);
+      return [];
     }
 
-    // Rate-limit between Overpass queries
-    await new Promise(r => setTimeout(r, 1000));
+    const data = await response.json();
+    console.log(`Overpass returned ${data.elements?.length || 0} elements`);
+
+    for (const el of (data.elements || [])) {
+      if (!el.tags?.name || seenIds.has(el.id)) continue;
+      seenIds.add(el.id);
+      const lat = el.lat || el.center?.lat;
+      const lon = el.lon || el.center?.lon;
+      allPlaces.push({
+        id: `osm_${el.id}`,
+        name: el.tags.name,
+        address: [el.tags['addr:housenumber'], el.tags['addr:street'], el.tags['addr:city']].filter(Boolean).join(' ') || null,
+        website: el.tags.website || el.tags['contact:website'] || null,
+        tel: el.tags.phone || el.tags['contact:phone'] || null,
+        hours: el.tags.opening_hours || null,
+        cuisine: el.tags.cuisine || null,
+        amenity: el.tags.amenity || el.tags.leisure || el.tags.tourism || null,
+        lat,
+        lon,
+        maps_url: lat && lon ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=18/${lat}/${lon}` : null
+      });
+    }
+  } catch (err) {
+    console.error('Overpass query failed:', err.name === 'AbortError' ? 'timeout' : err.message);
+    return [];
   }
 
   // Deduplicate chains: only keep one location per business name
@@ -408,8 +381,8 @@ async function fetchLocalPlaces(category, location, radiusMeters) {
     ...leanPlaces.sort(() => Math.random() - 0.5)
   ];
 
-  const TARGET = 10;
-  const result = prioritized.slice(0, Math.max(TARGET, Math.min(prioritized.length, 12)));
+  const TARGET = 15;
+  const result = prioritized.slice(0, Math.max(TARGET, Math.min(prioritized.length, 20)));
   console.log(`Locals mode: found ${allPlaces.length} places (${richPlaces.length} rich, ${mediumPlaces.length} medium, ${leanPlaces.length} lean), returning ${result.length}`);
   return result;
 }
@@ -753,9 +726,9 @@ async function generateResults(category, location, locationRadius, participants)
 
   // Radius in meters
   const radiusMeters = {
-    'walkable': 1000,
-    'nearby': 8000,
-    'city': 25000
+    'walkable': 2000,
+    'nearby': 10000,
+    'city': 30000
   }[locationRadius] || 8000;
 
   // For location-based categories (food, drinks, activities), fetch real places first
