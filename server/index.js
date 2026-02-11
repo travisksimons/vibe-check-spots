@@ -304,9 +304,17 @@ async function fetchLocalPlaces(category, location, radiusMeters) {
       `["amenity"="cafe"]["cuisine"~"breakfast|brunch|sandwich|bakery|pastry|lunch",i]`
     ],
     drinks: [
-      `["amenity"~"bar|pub|biergarten|nightclub"]`,
+      // Primary: bars, pubs, nightclubs
+      `["amenity"~"bar|pub|biergarten|nightclub"]["name"]`,
+      // Breweries and wineries
+      `["craft"~"brewery|winery"]["name"]`,
+      `["microbrewery"="yes"]["name"]`,
+      // Cocktail bars and lounges
       `["bar"="yes"]["name"]`,
-      `["cocktails"="yes"]["name"]`
+      // Wine bars
+      `["amenity"="restaurant"]["cuisine"~"wine_bar",i]`,
+      // Sports bars (often tagged as restaurants)
+      `["amenity"="restaurant"]["sport"="darts"]`
     ],
     activities: [
       // Entertainment venues

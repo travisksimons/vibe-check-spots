@@ -422,21 +422,23 @@ function LocalsResults({ sessionData, results, participantName, onNewSession }) 
             const avgLat = placesWithCoords.reduce((sum, p) => sum + p.lat, 0) / placesWithCoords.length;
             const avgLon = placesWithCoords.reduce((sum, p) => sum + p.lon, 0) / placesWithCoords.length;
 
-            // Create OpenStreetMap embed URL
-            const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${avgLon - 0.02}%2C${avgLat - 0.015}%2C${avgLon + 0.02}%2C${avgLat + 0.015}&layer=mapnik`;
+            // Create Google Maps URL with all places as waypoints for a visual overview
+            const allPlacesMapUrl = `https://www.google.com/maps/dir/?api=1&destination=${placesWithCoords[0].lat},${placesWithCoords[0].lon}&waypoints=${placesWithCoords.slice(1).map(p => `${p.lat},${p.lon}`).join('|')}`;
 
             return (
               <>
-                <div className="relative w-full h-64 mb-6 border border-vt-darkgray overflow-hidden">
-                  <iframe
-                    src={mapUrl}
-                    className="w-full h-full border-0"
-                    title="Map view"
-                  />
-                  <div className="absolute bottom-2 right-2 bg-vt-black/80 px-2 py-1 text-xs text-vt-gray">
-                    {placesWithCoords.length} places
-                  </div>
-                </div>
+                {/* Open all in Google Maps button */}
+                <a
+                  href={allPlacesMapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-4 mb-6 border border-vt-darkgray hover:border-vt-light transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5 text-vt-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                  </svg>
+                  <span className="text-vt-light text-sm">open all {placesWithCoords.length} places in maps</span>
+                </a>
 
                 <div className="flex flex-col gap-3">
                   {placesWithCoords.map((place, idx) => (
