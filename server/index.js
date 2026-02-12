@@ -381,8 +381,8 @@ async function fetchLocalPlaces(category, location, radiusMeters) {
     ...leanPlaces.sort(() => Math.random() - 0.5)
   ];
 
-  const TARGET = 15;
-  const result = prioritized.slice(0, Math.max(TARGET, Math.min(prioritized.length, 20)));
+  const TARGET = 10;
+  const result = prioritized.slice(0, Math.max(TARGET, Math.min(prioritized.length, 12)));
   console.log(`Locals mode: found ${allPlaces.length} places (${richPlaces.length} rich, ${mediumPlaces.length} medium, ${leanPlaces.length} lean), returning ${result.length}`);
   return result;
 }
